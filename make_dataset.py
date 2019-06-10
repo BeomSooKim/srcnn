@@ -11,8 +11,8 @@ def conv_output(inp, filters):
     return out
 
 scale = 4
-data_path = 'D:\\python\\dataset\\horse2zebra\\trainB\\*.jpg'
-save_path = 'D:\\python\\dataset\\horse2zebra\\srcnn_train.hdf5'
+data_path = 'D:\\dataset\\horse2zebra\\trainB\\*.jpg'
+save_path = 'D:\\dataset\\horse2zebra\\srcnn_train.hdf5'
 imgSize = 33
 filter_list = [9, 1, 5] # convnet filter size sequence
 stride = 14

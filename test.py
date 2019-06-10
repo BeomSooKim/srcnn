@@ -24,3 +24,7 @@ for r in range(0, 256-33+1, 21):
 pred_img = np.clip(pred_img * 255, 0, 255).astype(np.uint8)
 Image.fromarray(pred_img)
 #%%
+arr = np.array(img_bicubic) / 255.0
+dd = trained.predict(arr[np.newaxis, :,:,:])[0]
+ddd = np.clip(dd * 255.0, 0, 255).astype(np.uint8)
+Image.fromarray(ddd)

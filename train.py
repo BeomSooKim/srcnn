@@ -3,11 +3,12 @@ from keras.layers import Conv2D, Activation, Input
 from keras.initializers import RandomNormal, Constant
 from keras.models import Model, load_model
 from keras.optimizers import SGD, Adam
+import keras.backend as K
 import h5py
 import numpy as np
 
 #%%
-epochs = 50
+epochs = 100
 base_lr = 0.001
 momentum = 0.9
 batchSize = 256
@@ -58,6 +59,8 @@ for ep in range(epochs+1):
     print('{} of {} epoch loss : {:.6f}'.format(ep+1, epochs, loss_epoch))
     if ep+1 % save_period == 0:
         model.save('D:\\dl\\models\\srcnn\\epoch_{:03d}.hdf5'.format(ep+1))
+    if ep+1 % 20 == 0:
+        K.set_value(model.optimizer.lr, model.optimizer.lr * 0.3)
 dataset.close()
 #%%
 from PIL import Image

@@ -8,10 +8,10 @@ import h5py
 import numpy as np
 
 #%%
-epochs = 10
+epochs = 50
 base_lr = 0.001
 momentum = 0.9
-batchSize = 256
+batchSize = 512
 save_period = 5
 decay_period = 20
 
@@ -25,23 +25,23 @@ def srcnn(input_shape):
                 kernel_initializer = RandomNormal(0, 0.001), 
                 bias_initializer = Constant(0))(x)
     x = Activation('relu')(x)
-    out = Conv2D(filters = 3, kernel_size = 5, strides = 1, 
+    out = Conv2D(filters = 1, kernel_size = 5, strides = 1, 
                 kernel_initializer = RandomNormal(0, 0.001), 
                 bias_initializer = Constant(0))(x)
     x = Activation('linear')(x)
     return Model(inp, out)
 
-model = srcnn((None, None, 3))
+model = srcnn((None, None, 1))
 model.summary()
-model.compile(SGD(base_lr, momentum, 0.8), loss = 'mse')
+model.compile(SGD(base_lr, momentum), loss = 'mse')
 
-dataset = h5py.File('D:\\dataset\\horse2zebra\\srcnn_train.hdf5')
+dataset = h5py.File('D:\\python\\dataset\\horse2zebra\\srcnn_train.hdf5')
 nImages = len(dataset['images'])
 
 index = np.arange(nImages)
 losses = []
 stepsize = nImages // batchSize
-for ep in range(epochs+1):
+for ep in range(1, epochs+1):
     loss_for_epoch = []
     np.random.shuffle(index)    
     for step in range(stepsize):
@@ -52,14 +52,15 @@ for ep in range(epochs+1):
         images = images / 255.
         labels = labels / 255.
 
-        loss = model.train_on_batch(images, labels)
+        loss = model.train_on_batch(images[:,:,:,np.newaxis], labels[:,:,:,np.newaxis])
         print("{} of {} iter loss : {:.6f}".format(step, stepsize, loss), end = '\r')
         loss_for_epoch.append(loss)
     loss_epoch = np.array(loss_for_epoch).mean()
     losses.append(loss_epoch)
-    print('{} of {} epoch loss : {:.6f}'.format(ep+1, epochs, loss_epoch))
-    if ep+1 % save_period == 0:
-        model.save('D:\\dl\\models\\srcnn\\epoch_{:03d}.hdf5'.format(ep+1))
+    print('{} of {} epoch loss : {:.6f}'.format(ep, epochs, loss_epoch))
+    if ep % save_period == 0:
+        model.save('D:\\python\\models\\srcnn\\epoch_{:03d}.hdf5'.format(ep))
     #if ep+1 % decay_period == 0:
      #   K.set_value(model.optimizer.lr, model.optimizer.lr * 0.3)
 dataset.close()
+#%%

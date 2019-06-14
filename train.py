@@ -1,47 +1,37 @@
 #%%
-from keras.layers import Conv2D, Activation, Input
-from keras.initializers import RandomNormal, Constant
-from keras.models import Model, load_model
+
 from keras.optimizers import SGD, Adam
 import keras.backend as K
+from keras.models import load_model
 import h5py
 import numpy as np
+from utils import srcnn
 
 #%%
-epochs = 50
-base_lr = 0.001
+start_epoch = 140
+epochs = 20
+base_lr = 0.000005
 momentum = 0.9
 batchSize = 512
 save_period = 5
-decay_period = 20
-onRGB = True
+patience = 10
+decay_factor = 0.5
+epsilon = 1e-4
 
-def srcnn(input_shape):
-    inp = Input(input_shape)
-    x = Conv2D(filters = 64, kernel_size = 9, strides = 1, 
-                kernel_initializer = RandomNormal(0, 0.001), 
-                bias_initializer = Constant(0))(inp)
-    x = Activation('relu')(x)
-    x = Conv2D(filters = 32, kernel_size = 1, strides = 1, 
-                kernel_initializer = RandomNormal(0, 0.001), 
-                bias_initializer = Constant(0))(x)
-    x = Activation('relu')(x)
-    out = Conv2D(filters = 3 if onRGB else 1, kernel_size = 5, strides = 1, 
-                kernel_initializer = RandomNormal(0, 0.001), 
-                bias_initializer = Constant(0))(x)
-    x = Activation('linear')(x)
-    return Model(inp, out)
-
-model = srcnn((None, None, 3 if onRGB else 1))
+#model = srcnn((None, None, 1))
+model = load_model('D:/dl/models/srcnn/epoch_120.hdf5')
 model.summary()
-model.compile(SGD(base_lr, momentum), loss = 'mse')
+model.compile(Adam(base_lr, momentum), loss = 'mse')
 
-dataset = h5py.File('D:\\python\\dataset\\horse2zebra\\srcnn_train_rgb.hdf5')
+dataset = h5py.File('D:\\dataset\\horse2zebra\\srcnn_train_Y.hdf5')
 nImages = len(dataset['images'])
 
 index = np.arange(nImages)
 losses = []
 stepsize = nImages // batchSize
+stay_count = 0
+minloss = 1.0
+
 for ep in range(1, epochs+1):
     loss_for_epoch = []
     np.random.shuffle(index)    
@@ -50,20 +40,29 @@ for ep in range(1, epochs+1):
         images = dataset['images'][sorted(list(idx))]
         labels = dataset['labels'][sorted(list(idx))]
 
-        images = images / 255.
-        labels = labels / 255.
-        if not onRGB:
-            loss = model.train_on_batch(images[:,:,:,np.newaxis], labels[:,:,:,np.newaxis])
-        else:
-            loss = model.train_on_batch(images, labels)
+        images = images / 127.5 - 1
+        labels = labels / 127.5 - 1
+        
+        loss = model.train_on_batch(images[:,:,:,np.newaxis], labels[:,:,:,np.newaxis])
+        
         print("{} of {} iter loss : {:.6f}".format(step, stepsize, loss), end = '\r')
         loss_for_epoch.append(loss)
     loss_epoch = np.array(loss_for_epoch).mean()
     losses.append(loss_epoch)
     print('{} of {} epoch loss : {:.6f}'.format(ep, epochs, loss_epoch))
     if ep % save_period == 0:
-        model.save('D:\\python\\models\\srcnn\\epoch_{:03d}.hdf5'.format(ep))
-    #if ep+1 % decay_period == 0:
-     #   K.set_value(model.optimizer.lr, model.optimizer.lr * 0.3)
+        model.save('D:\\dl\\models\\srcnn\\epoch_{:03d}.hdf5'.format(ep+start_epoch))
+    #if ep % decay_period == 0:
+    #   K.set_value(model.optimizer.lr, model.optimizer.lr * decay_factor)
+    #if minloss - loss_epoch < epsilon:
+    #    stay_count +=1
+    #    if stay_count == patience:
+    #        print('decrease learning rate from {:.4f} to {:.4f}'.format(K.eval(model.optimizer.lr), K.eval(model.optimizer.lr)*decay_factor))
+    #        K.set_value(model.optimizer.lr, K.eval(model.optimizer.lr) * decay_factor)
+    #        stay_count = 0
+    #else:
+    #    stay_count = 0
+    #if minloss >= loss_epoch:
+    #        minloss = loss_epoch
+    #print('stay count {} / min loss : {:.4f} / loss epoch : {:.4f}'.format(stay_count, minloss, loss_epoch))    
 dataset.close()
-#%%
